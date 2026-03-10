@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>QUARANTINE // KEMO CITY ENGINE</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --green:#39FF14;--green-dim:#1b7a0a;--amber:#FFB000;
+  --red:#FF2D00;--black:#000800;--panel:#030d03;--border:#1a4a0d;
+}
+body{background:var(--black);color:var(--green);font-family:'Share Tech Mono',monospace;overflow:hidden;height:100vh;display:flex;flex-direction:column;cursor:crosshair;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.1) 2px,rgba(0,0,0,0.1) 4px);pointer-events:none;z-index:999;}
+
+/* HUD */
+#hud{display:flex;align-items:center;gap:1rem;padding:0.5rem 1rem;background:rgba(0,8,0,0.95);border-bottom:1px solid var(--border);font-size:11px;letter-spacing:0.15em;color:var(--green-dim);flex-shrink:0;}
+#hud .title{font-family:'VT323',monospace;font-size:22px;color:var(--green);letter-spacing:0.1em;}
+#hud .sep{color:var(--border);}
+.hud-btn{background:transparent;border:1px solid var(--border);color:var(--green-dim);font-family:'Share Tech Mono',monospace;font-size:10px;padding:0.3rem 0.8rem;cursor:pointer;letter-spacing:0.1em;transition:all 0.15s;}
+.hud-btn:hover,.hud-btn.active{background:var(--green);border-color:var(--green);color:var(--black);}
+#coords{color:var(--amber);font-size:10px;letter-spacing:0.1em;min-width:200px;}
+.ml-auto{margin-left:auto;}
+
+/* Main layout */
+#main{display:flex;flex:1;overflow:hidden;}
+
+/* Viewport */
+#viewport-wrap{position:relative;flex:1;display:flex;align-items:stretch;}
+#viewport{display:block;width:100%;height:100%;image-rendering:pixelated;}
+
+/* Minimap */
+#minimap-wrap{position:absolute;top:1rem;right:1rem;border:1px solid var(--border);background:rgba(0,8,0,0.85);}
+#minimap{display:block;image-rendering:pixelated;}
+#minimap-label{text-align:center;font-size:9px;color:var(--green-dim);padding:2px;font-family:'VT323',monospace;letter-spacing:0.15em;}
+
+/* Crosshair */
+#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;color:rgba(57,255,20,0.6);font-size:18px;line-height:1;}
+
+/* Controls overlay */
+#controls{position:absolute;bottom:1rem;left:1rem;font-size:10px;color:var(--green-dim);letter-spacing:0.1em;line-height:1.8;}
+#controls span{color:var(--amber);}
+
+/* Sidebar */
+#sidebar{width:200px;background:var(--panel);border-left:1px solid var(--border);padding:1rem;display:flex;flex-direction:column;gap:1rem;font-size:10px;overflow-y:auto;flex-shrink:0;}
+.sb-section{border:1px solid var(--border);padding:0.6rem;}
+.sb-label{font-family:'VT323',monospace;font-size:16px;color:var(--amber);letter-spacing:0.1em;margin-bottom:0.5rem;}
+.sb-row{display:flex;justify-content:space-between;margin-bottom:0.3rem;color:var(--green-dim);}
+.sb-val{color:var(--green);}
+.sb-btn{width:100%;background:transparent;border:1px solid var(--border);color:var(--green-dim);font-family:'Share Tech Mono',monospace;font-size:9px;padding:0.4rem;cursor:pointer;letter-spacing:0.1em;margin-bottom:0.3rem;text-align:left;transition:all 0.15s;}
+.sb-btn:hover{background:var(--green-glow);color:var(--green);border-color:var(--green-dim);}
+.sb-btn.active{background:var(--green);color:var(--black);border-color:var(--green);}
+input[type=range]{width:100%;accent-color:var(--green);cursor:pointer;}
+
+/* Loading */
+#loading{position:fixed;inset:0;background:var(--black);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;gap:1rem;}
+#loading .lt{font-family:'VT323',monospace;font-size:60px;color:var(--green);text-shadow:0 0 30px rgba(57,255,20,0.5);}
+#loading .ls{font-size:12px;color:var(--green-dim);letter-spacing:0.3em;}
+#loading .lp{width:300px;height:2px;background:var(--border);margin-top:1rem;}
+#loading .lf{height:100%;background:var(--green);width:0;transition:width 0.3s;}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="lt">QUARANTINE</div>
+  <div class="ls">LOADING KEMO CITY DATA...</div>
+  <div class="lp"><div class="lf" id="loadProg"></div></div>
+</div>
+
+<div id="hud">
+  <span class="title">QUARANTINE</span>
+  <span class="sep">|</span>
+  <button class="hud-btn active" id="btnSewer">SEWER</button>
+  <button class="hud-btn" id="btnKemo">KEMO CITY</button>
+  <button class="hud-btn" id="btnGen">GENERATE LEVEL</button>
+  <span class="sep">|</span>
+  <span id="coords">POS: --</span>
+  <span class="sep" style="margin-left:auto">|</span>
+  <span style="font-size:10px;color:var(--green-dim)">CLICK TO CAPTURE MOUSE &nbsp;·&nbsp; ESC TO RELEASE</span>
+</div>
+
+<div id="main">
+  <div id="viewport-wrap">
+    <canvas id="viewport"></canvas>
+    <div id="crosshair">+</div>
+    <div id="minimap-wrap">
+      <canvas id="minimap" width="160" height="80"></canvas>
+      <div id="minimap-label">TACTICAL MAP</div>
+    </div>
+    <div id="controls">
+      <div><span>W/S</span> — ACCELERATE / BRAKE</div>
+      <div><span>A/D</span> — STEER</div>
+      <div><span>MOUSE</span> — LOOK</div>
+      <div><span>G</span> — GENERATE NEW LEVEL</div>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div class="sb-section">
+      <div class="sb-label">SYSTEMS</div>
+      <div class="sb-row"><span>FPS</span><span class="sb-val" id="sbFps">--</span></div>
+      <div class="sb-row"><span>RES</span><span class="sb-val" id="sbRes">--</span></div>
+      <div class="sb-row"><span>MAP</span><span class="sb-val" id="sbMap">--</span></div>
+      <div class="sb-row"><span>ANGLE</span><span class="sb-val" id="sbAngle">--</span></div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">RENDER</div>
+      <div class="sb-row"><span>FOV</span></div>
+      <input type="range" id="fovSlider" min="40" max="120" value="66">
+      <div class="sb-row"><span>QUALITY</span></div>
+      <input type="range" id="qualSlider" min="1" max="4" value="2">
+      <div style="margin-top:0.5rem">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;color:var(--green-dim);font-size:10px;">
+          <input type="checkbox" id="chkFloor" checked> FLOOR/CEIL
+        </label>
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;color:var(--green-dim);font-size:10px;margin-top:0.3rem;">
+          <input type="checkbox" id="chkFog" checked> DISTANCE FOG
+        </label>
+      </div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">LEVELS</div>
+      <button class="sb-btn active" data-area="sewer">▶ SEWER DISTRICT</button>
+      <button class="sb-btn" data-area="kemo">▶ KEMO CITY</button>
+      <button class="sb-btn" data-area="gen">▶ GENERATED LEVEL</button>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">INFO</div>
+      <div style="color:var(--green-dim);font-size:9px;line-height:1.7;">
+        Original textures extracted from Quarantine (1994)<br>
+        by GameTek / Imagexcel.<br><br>
+        64×64 wall tiles<br>
+        320×200 floor/sky
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="level_data.js"></script>
+<script>
+// ─── CONSTANTS ───
+const TEX_SIZE = 64;
+const RENDER_W_BASE = 640;
+const RENDER_H_BASE = 360;
+
+// ─── STATE ───
+let canvas, ctx, mmCanvas, mmCtx;
+let levelData = null;
+let textures = {}; // area -> array of ImageData
+let floorTex = {}, skyTex = {};
+
+let currentArea = 'sewer';
+let map = [], mapW = 0, mapH = 0;
+
+let player = { x: 2, y: 2, angle: 0, speed: 0 };
+let keys = {};
+let mouseLocked = false;
+let lastTime = 0;
+let frameCount = 0, fpsTimer = 0, fps = 0;
+
+let fov = 66 * Math.PI / 180;
+let renderScale = 2;
+let showFloor = true;
+let useFog = true;
+
+// ─── LOAD ───
+async function init() {
+  canvas = document.getElementById('viewport');
+  ctx = canvas.getContext('2d');
+  mmCanvas = document.getElementById('minimap');
+  mmCtx = mmCanvas.getContext('2d');
+
+  setProgress(10);
+
+  levelData = LEVEL_DATA;
+  setProgress(40);
+
+  // Load textures for each area
+  await loadTextures('sewer', levelData.swall, levelData.sfloor, levelData.sky);
+  setProgress(60);
+  await loadTextures('kemo', levelData.wall, levelData.floor, levelData.sky);
+  setProgress(80);
+
+  setupControls();
+  setArea('sewer');
+  setProgress(100);
+
+  setTimeout(() => {
+    document.getElementById('loading').style.display = 'none';
+    requestAnimationFrame(loop);
+  }, 300);
+}
+
+function setProgress(p) {
+  document.getElementById('loadProg').style.width = p + '%';
+}
+
+async function loadTextures(area, wallData, floorB64, skyB64) {
+  textures[area] = [];
+  for (const w of wallData) {
+    const img = await loadImage('data:image/png;base64,' + w.b64);
+    const offscreen = document.createElement('canvas');
+    offscreen.width = offscreen.height = TEX_SIZE;
+    const octx = offscreen.getContext('2d');
+    octx.drawImage(img, 0, 0, TEX_SIZE, TEX_SIZE);
+    textures[area].push(octx.getImageData(0, 0, TEX_SIZE, TEX_SIZE));
+  }
+
+  const fImg = await loadImage('data:image/png;base64,' + floorB64);
+  const fOff = document.createElement('canvas');
+  fOff.width = 320; fOff.height = 200;
+  fOff.getContext('2d').drawImage(fImg, 0, 0, 320, 200);
+  floorTex[area] = fOff.getContext('2d').getImageData(0, 0, 320, 200);
+
+  const sImg = await loadImage('data:image/png;base64,' + skyB64);
+  const sOff = document.createElement('canvas');
+  sOff.width = 320; sOff.height = 200;
+  sOff.getContext('2d').drawImage(sImg, 0, 0, 320, 200);
+  skyTex[area] = sOff.getContext('2d').getImageData(0, 0, 320, 200);
+}
+
+function loadImage(src) {
+  return new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
+}
+
+// ─── LEVELS ───
+function setArea(area) {
+  currentArea = area;
+  document.querySelectorAll('.sb-btn').forEach(b => b.classList.toggle('active', b.dataset.area === area));
+
+  if (area === 'gen') {
+    generateLevel();
+    return;
+  }
+
+  const md = levelData.maps[area];
+  mapW = md.w; mapH = md.h;
+  map = md.tiles;
+
+  // Find open spawn point
+  spawnPlayer();
+  document.getElementById('sbMap').textContent = area.toUpperCase();
+}
+
+function spawnPlayer() {
+  // Find first open cell near center
+  const cx = Math.floor(mapW / 2), cy = Math.floor(mapH / 2);
+  for (let r = 0; r < Math.max(mapW, mapH); r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const x = cx + dx, y = cy + dy;
+        if (x >= 0 && x < mapW && y >= 0 && y < mapH && map[y * mapW + x] === 0) {
+          player.x = x + 0.5;
+          player.y = y + 0.5;
+          player.angle = 0;
+          player.speed = 0;
+          return;
+        }
+      }
+    }
+  }
+}
+
+function generateLevel() {
+  // BSP-inspired procedural level generator
+  const GW = 60, GH = 40;
+  mapW = GW; mapH = GH;
+  map = new Array(GW * GH).fill(0);
+
+  // Fill borders
+  for (let x = 0; x < GW; x++) { map[x] = 1; map[(GH-1)*GW+x] = 1; }
+  for (let y = 0; y < GH; y++) { map[y*GW] = 1; map[y*GW+GW-1] = 1; }
+
+  // Recursive room division
+  function divide(x1, y1, x2, y2, depth) {
+    const w = x2 - x1, h = y2 - y1;
+    if (w < 5 || h < 5 || depth > 6) return;
+
+    if (w > h) {
+      // Vertical wall
+      const wx = x1 + 2 + Math.floor(Math.random() * (w - 4));
+      const gap = y1 + 1 + Math.floor(Math.random() * (h - 2));
+      const texType = 1 + Math.floor(Math.random() * 15);
+      for (let y = y1; y < y2; y++) {
+        if (y !== gap) map[y * GW + wx] = texType;
+      }
+      divide(x1, y1, wx, y2, depth + 1);
+      divide(wx, y1, x2, y2, depth + 1);
+    } else {
+      // Horizontal wall
+      const wy = y1 + 2 + Math.floor(Math.random() * (h - 4));
+      const gap = x1 + 1 + Math.floor(Math.random() * (w - 2));
+      const texType = 1 + Math.floor(Math.random() * 15);
+      for (let x = x1; x < x2; x++) {
+        if (x !== gap) map[wy * GW + x] = texType;
+      }
+      divide(x1, y1, x2, wy, depth + 1);
+      divide(x1, wy, x2, y2, depth + 1);
+    }
+  }
+
+  divide(0, 0, GW, GH, 0);
+
+  // Add scattered pillars
+  for (let i = 0; i < 30; i++) {
+    const x = 2 + Math.floor(Math.random() * (GW - 4));
+    const y = 2 + Math.floor(Math.random() * (GH - 4));
+    if (map[y*GW+x] === 0) map[y*GW+x] = 1 + Math.floor(Math.random() * 15);
+  }
+
+  spawnPlayer();
+  document.getElementById('sbMap').textContent = 'GEN';
+  currentArea = 'sewer'; // use sewer textures for generated level
+}
+
+// ─── RAYCASTER ───
+function resize() {
+  const wrap = document.getElementById('viewport-wrap');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  canvas.width = W; canvas.height = H;
+  document.getElementById('sbRes').textContent = `${W}×${H}`;
+}
+
+function castRay(rayAngle) {
+  const sin = Math.sin(rayAngle), cos = Math.cos(rayAngle);
+  let mapX = Math.floor(player.x), mapY = Math.floor(player.y);
+
+  const deltaX = Math.abs(1 / cos), deltaY = Math.abs(1 / sin);
+  let stepX, stepY, sideDistX, sideDistY;
+
+  if (cos < 0) { stepX = -1; sideDistX = (player.x - mapX) * deltaX; }
+  else         { stepX =  1; sideDistX = (mapX + 1.0 - player.x) * deltaX; }
+  if (sin < 0) { stepY = -1; sideDistY = (player.y - mapY) * deltaY; }
+  else         { stepY =  1; sideDistY = (mapY + 1.0 - player.y) * deltaY; }
+
+  let hit = false, side = 0, tileVal = 0;
+  while (!hit) {
+    if (sideDistX < sideDistY) { sideDistX += deltaX; mapX += stepX; side = 0; }
+    else                        { sideDistY += deltaY; mapY += stepY; side = 1; }
+    if (mapX < 0 || mapX >= mapW || mapY < 0 || mapY >= mapH) { tileVal = 1; hit = true; break; }
+    tileVal = map[mapY * mapW + mapX];
+    if (tileVal > 0) hit = true;
+  }
+
+  const wallDist = side === 0
+    ? (mapX - player.x + (1 - stepX) / 2) / cos
+    : (mapY - player.y + (1 - stepY) / 2) / sin;
+
+  let wallX = side === 0
+    ? player.y + wallDist * sin
+    : player.x + wallDist * cos;
+  wallX -= Math.floor(wallX);
+
+  return { dist: Math.abs(wallDist), side, wallX, tileVal, mapX, mapY };
+}
+
+function render() {
+  const W = canvas.width, H = canvas.height;
+  const Q = Math.max(1, Math.round(renderScale));
+  const rW = Math.floor(W / Q), rH = Math.floor(H / Q);
+
+  const imgData = ctx.createImageData(rW, rH);
+  const buf = imgData.data;
+  const half = rH / 2;
+  const tArr = textures[currentArea] || textures['sewer'];
+  const fArr = floorTex[currentArea] || floorTex['sewer'];
+  const sArr = skyTex[currentArea] || skyTex['sewer'];
+
+  const numTex = tArr.length;
+
+  for (let x = 0; x < rW; x++) {
+    const camX = (2 * x / rW) - 1;
+    const rayAngle = player.angle + Math.atan(camX * Math.tan(fov / 2));
+    const { dist, side, wallX, tileVal } = castRay(rayAngle);
+
+    const lineH = Math.floor(rH / dist);
+    const drawStart = Math.max(0, Math.floor(half - lineH / 2));
+    const drawEnd   = Math.min(rH - 1, Math.floor(half + lineH / 2));
+
+    // Wall texture
+    const texIdx = ((tileVal - 1) % numTex + numTex) % numTex;
+    const tex = tArr[texIdx];
+    const texX = Math.floor(wallX * TEX_SIZE);
+
+    for (let y = 0; y < rH; y++) {
+      const pix = (y * rW + x) * 4;
+
+      if (y >= drawStart && y <= drawEnd) {
+        // Wall
+        const d = y - rH / 2 + lineH / 2;
+        const texY = Math.floor((d / lineH) * TEX_SIZE);
+        const tp = (Math.min(texY, TEX_SIZE-1) * TEX_SIZE + Math.min(texX, TEX_SIZE-1)) * 4;
+        let r = tex.data[tp], g = tex.data[tp+1], b = tex.data[tp+2];
+        // Darken side walls and apply distance fog
+        let dark = side === 1 ? 0.7 : 1.0;
+        if (useFog) dark *= Math.max(0.1, 1 - dist / 20);
+        buf[pix]   = r * dark;
+        buf[pix+1] = g * dark;
+        buf[pix+2] = b * dark;
+        buf[pix+3] = 255;
+
+      } else if (y > drawEnd) {
+        // Floor
+        if (showFloor && fArr) {
+          const rowDist = half / (y - half);
+          const floorX = player.x + rowDist * (Math.cos(rayAngle) / Math.cos(player.angle - rayAngle));
+          const floorY = player.y + rowDist * (Math.sin(rayAngle) / Math.cos(player.angle - rayAngle));
+          const fx = Math.floor(((floorX % 1 + 1) % 1) * 320);
+          const fy = Math.floor(((floorY % 1 + 1) % 1) * 100);
+          const fp = (Math.min(fy, 199) * 320 + Math.min(fx, 319)) * 4;
+          let dark = useFog ? Math.max(0.05, 1 - rowDist / 15) : 0.6;
+          dark *= 0.5;
+          buf[pix]   = fArr.data[fp]   * dark;
+          buf[pix+1] = fArr.data[fp+1] * dark;
+          buf[pix+2] = fArr.data[fp+2] * dark;
+          buf[pix+3] = 255;
+        } else {
+          buf[pix]=15; buf[pix+1]=25; buf[pix+2]=15; buf[pix+3]=255;
+        }
+
+      } else {
+        // Ceiling/sky
+        if (showFloor && sArr) {
+          const sx = Math.floor((x / rW) * 320);
+          const sy = Math.floor((y / half) * 100);
+          const sp = (Math.min(sy, 199) * 320 + Math.min(sx, 319)) * 4;
+          let dark = useFog ? Math.max(0.15, 1 - (half - y) / half) : 0.5;
+          dark *= 0.4;
+          buf[pix]   = sArr.data[sp]   * dark;
+          buf[pix+1] = sArr.data[sp+1] * dark;
+          buf[pix+2] = sArr.data[sp+2] * dark;
+          buf[pix+3] = 255;
+        } else {
+          buf[pix]=0; buf[pix+1]=8; buf[pix+2]=0; buf[pix+3]=255;
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  if (Q > 1) {
+    ctx.imageSmoothingEnabled = false;
+    const tmp = ctx.getImageData(0, 0, rW, rH);
+    canvas.width = W; canvas.height = H;
+    ctx.putImageData(tmp, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(canvas, 0, 0, rW, rH, 0, 0, W, H);
+  }
+}
+
+function drawMinimap() {
+  const S = 2; // pixels per tile
+  const mW = mapW * S, mH = mapH * S;
+  mmCanvas.width = Math.min(mW, 200);
+  mmCanvas.height = Math.min(mH, 100);
+  const scaleX = mmCanvas.width / mW, scaleY = mmCanvas.height / mH;
+
+  mmCtx.fillStyle = '#010601';
+  mmCtx.fillRect(0, 0, mmCanvas.width, mmCanvas.height);
+
+  for (let y = 0; y < mapH; y++) {
+    for (let x = 0; x < mapW; x++) {
+      const t = map[y * mapW + x];
+      if (t > 0) {
+        mmCtx.fillStyle = `hsl(${(t * 23) % 360},40%,25%)`;
+        mmCtx.fillRect(x*S*scaleX, y*S*scaleY, S*scaleX, S*scaleY);
+      }
+    }
+  }
+
+  // Player dot
+  const px = player.x * S * scaleX, py = player.y * S * scaleY;
+  mmCtx.fillStyle = '#39FF14';
+  mmCtx.fillRect(px - 2, py - 2, 4, 4);
+
+  // Direction line
+  mmCtx.strokeStyle = '#FFB000';
+  mmCtx.lineWidth = 1;
+  mmCtx.beginPath();
+  mmCtx.moveTo(px, py);
+  mmCtx.lineTo(px + Math.cos(player.angle) * 8, py + Math.sin(player.angle) * 8);
+  mmCtx.stroke();
+}
+
+// ─── GAME LOOP ───
+function loop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+
+  // FPS
+  frameCount++;
+  fpsTimer += dt;
+  if (fpsTimer >= 0.5) {
+    fps = Math.round(frameCount / fpsTimer);
+    frameCount = 0; fpsTimer = 0;
+    document.getElementById('sbFps').textContent = fps;
+  }
+
+  update(dt);
+  resize();
+  render();
+  drawMinimap();
+
+  document.getElementById('coords').textContent =
+    `POS: ${player.x.toFixed(1)}, ${player.y.toFixed(1)} | HDG: ${(player.angle * 180 / Math.PI).toFixed(0)}°`;
+  document.getElementById('sbAngle').textContent = (player.angle * 180 / Math.PI).toFixed(0) + '°';
+
+  requestAnimationFrame(loop);
+}
+
+function update(dt) {
+  const TURN = 2.5, SPEED = 4.0, FRICTION = 0.85;
+
+  if (keys['KeyA'] || keys['ArrowLeft'])  player.angle -= TURN * dt;
+  if (keys['KeyD'] || keys['ArrowRight']) player.angle += TURN * dt;
+
+  if (keys['KeyW'] || keys['ArrowUp'])   player.speed += SPEED * dt;
+  if (keys['KeyS'] || keys['ArrowDown']) player.speed -= SPEED * dt;
+
+  player.speed *= FRICTION;
+  if (Math.abs(player.speed) < 0.001) player.speed = 0;
+
+  const nx = player.x + Math.cos(player.angle) * player.speed * dt;
+  const ny = player.y + Math.sin(player.angle) * player.speed * dt;
+
+  if (!isWall(nx, player.y)) player.x = nx;
+  if (!isWall(player.x, ny)) player.y = ny;
+}
+
+function isWall(x, y) {
+  const mx = Math.floor(x), my = Math.floor(y);
+  if (mx < 0 || mx >= mapW || my < 0 || my >= mapH) return true;
+  return map[my * mapW + mx] !== 0;
+}
+
+// ─── CONTROLS ───
+function setupControls() {
+  window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (e.code === 'KeyG') generateLevel();
+    if (e.code === 'Escape' && mouseLocked) document.exitPointerLock();
+  });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+  canvas.addEventListener('click', () => canvas.requestPointerLock());
+
+  document.addEventListener('pointerlockchange', () => {
+    mouseLocked = document.pointerLockElement === canvas;
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (mouseLocked) player.angle += e.movementX * 0.002;
+  });
+
+  document.getElementById('fovSlider').addEventListener('input', e => {
+    fov = parseInt(e.target.value) * Math.PI / 180;
+  });
+  document.getElementById('qualSlider').addEventListener('input', e => {
+    renderScale = parseInt(e.target.value);
+  });
+  document.getElementById('chkFloor').addEventListener('change', e => { showFloor = e.target.checked; });
+  document.getElementById('chkFog').addEventListener('change', e => { useFog = e.target.checked; });
+
+  // Area buttons (HUD)
+  document.getElementById('btnSewer').addEventListener('click', () => { setArea('sewer'); syncHudBtns('sewer'); });
+  document.getElementById('btnKemo').addEventListener('click', () => { setArea('kemo'); syncHudBtns('kemo'); });
+  document.getElementById('btnGen').addEventListener('click', () => { setArea('gen'); syncHudBtns('gen'); });
+
+  // Area buttons (sidebar)
+  document.querySelectorAll('.sb-btn[data-area]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setArea(btn.dataset.area);
+      syncHudBtns(btn.dataset.area);
+    });
+  });
+}
+
+function syncHudBtns(area) {
+  document.getElementById('btnSewer').classList.toggle('active', area === 'sewer');
+  document.getElementById('btnKemo').classList.toggle('active', area === 'kemo');
+  document.getElementById('btnGen').classList.toggle('active', area === 'gen');
+}
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>

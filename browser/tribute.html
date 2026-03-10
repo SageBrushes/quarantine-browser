@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QUARANTINE // KEMO CITY TERMINAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #39FF14;
+  --green-dim: #1b7a0a;
+  --green-glow: rgba(57,255,20,0.15);
+  --amber: #FFB000;
+  --red: #FF2D00;
+  --yellow: #FFE500;
+  --black: #000800;
+  --dark: #010601;
+  --panel: #030d03;
+  --border: #1a4a0d;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--black);
+  color: var(--green);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 14px;
+  overflow-x: hidden;
+  cursor: crosshair;
+}
+
+/* ─── CRT OVERLAY ─── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.12) 2px,
+    rgba(0,0,0,0.12) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.7) 100%);
+  pointer-events: none;
+  z-index: 9998;
+}
+
+/* ─── NOISE TEXTURE ─── */
+.noise {
+  position: fixed;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9997;
+}
+
+/* ─── HERO ─── */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 2rem;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('extracted/img/TITLE.png');
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.15) saturate(0.3) sepia(0.5) hue-rotate(60deg);
+  transform: scale(1.05);
+}
+
+.hero-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(57,255,20,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(57,255,20,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.status-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 0.6rem 2rem;
+  background: rgba(0,8,0,0.9);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--green-dim);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+  margin-right: 6px;
+  animation: blink 1.2s steps(1) infinite;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+}
+
+.pre-title {
+  font-size: 11px;
+  letter-spacing: 0.4em;
+  color: var(--amber);
+  margin-bottom: 1rem;
+  font-family: 'Silkscreen', monospace;
+}
+
+.main-title {
+  font-family: 'VT323', monospace;
+  font-size: clamp(80px, 18vw, 220px);
+  line-height: 0.85;
+  letter-spacing: -0.02em;
+  color: var(--green);
+  text-shadow:
+    0 0 30px rgba(57,255,20,0.8),
+    0 0 60px rgba(57,255,20,0.4),
+    0 0 120px rgba(57,255,20,0.2);
+  position: relative;
+  display: inline-block;
+}
+
+.main-title::before,
+.main-title::after {
+  content: 'QUARANTINE';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.main-title::before {
+  color: var(--red);
+  animation: glitch-1 4s infinite steps(1);
+  clip-path: polygon(0 20%, 100% 20%, 100% 40%, 0 40%);
+}
+
+.main-title::after {
+  color: #00ffff;
+  animation: glitch-2 4s infinite steps(1);
+  clip-path: polygon(0 60%, 100% 60%, 100% 80%, 0 80%);
+}
+
+@keyframes glitch-1 {
+  0%, 89%, 100% { opacity: 0; transform: none; }
+  90% { opacity: 0.8; transform: translateX(-4px); }
+  91% { opacity: 0; }
+  94% { opacity: 0.6; transform: translateX(3px); }
+  95% { opacity: 0; }
+}
+
+@keyframes glitch-2 {
+  0%, 89%, 100% { opacity: 0; transform: none; }
+  90% { opacity: 0; }
+  92% { opacity: 0.7; transform: translateX(4px); }
+  93% { opacity: 0; }
+  96% { opacity: 0.5; transform: translateX(-2px); }
+  97% { opacity: 0; }
+}
+
+.subtitle {
+  font-family: 'VT323', monospace;
+  font-size: clamp(16px, 3vw, 28px);
+  letter-spacing: 0.3em;
+  color: var(--amber);
+  margin-top: 0.5rem;
+  text-shadow: 0 0 20px rgba(255,176,0,0.6);
+}
+
+.year-tag {
+  display: inline-block;
+  margin-top: 2rem;
+  padding: 0.4rem 1.5rem;
+  border: 1px solid var(--green-dim);
+  font-size: 11px;
+  letter-spacing: 0.4em;
+  color: var(--green-dim);
+  font-family: 'Silkscreen', monospace;
+}
+
+.lore-strip {
+  position: absolute;
+  bottom: 2rem;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,8,0,0.7);
+}
+
+.lore-text {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: var(--green-dim);
+  animation: marquee 40s linear infinite;
+}
+
+@keyframes marquee {
+  from { transform: translateX(100vw); }
+  to { transform: translateX(-100%); }
+}
+
+/* ─── SECTION COMMONS ─── */
+.section {
+  padding: 4rem 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-num {
+  font-family: 'VT323', monospace;
+  font-size: 48px;
+  color: var(--green-dim);
+  line-height: 1;
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-family: 'VT323', monospace;
+  font-size: 32px;
+  letter-spacing: 0.2em;
+  color: var(--green);
+  text-shadow: 0 0 20px rgba(57,255,20,0.4);
+}
+
+.section-desc {
+  font-size: 11px;
+  color: var(--green-dim);
+  letter-spacing: 0.1em;
+  margin-top: 0.25rem;
+}
+
+/* ─── LORE SECTION ─── */
+.lore-section {
+  padding: 4rem 2rem;
+  background: var(--dark);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.lore-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+.lore-portrait {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  padding: 1rem;
+}
+
+.lore-portrait img {
+  width: 100%;
+  image-rendering: pixelated;
+  filter: sepia(0.3) saturate(1.5) hue-rotate(60deg);
+}
+
+.lore-portrait-label {
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--green-dim);
+  margin-top: 0.5rem;
+  font-family: 'Silkscreen', monospace;
+}
+
+.lore-text-block {
+  border-left: 2px solid var(--green-dim);
+  padding-left: 2rem;
+}
+
+.lore-text-block h2 {
+  font-family: 'VT323', monospace;
+  font-size: 40px;
+  color: var(--amber);
+  letter-spacing: 0.1em;
+  margin-bottom: 1rem;
+}
+
+.lore-text-block p {
+  line-height: 1.9;
+  color: var(--green);
+  margin-bottom: 1rem;
+  font-size: 13px;
+}
+
+.lore-text-block p span {
+  color: var(--amber);
+}
+
+/* ─── SCREENSHOT GALLERY ─── */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2px;
+}
+
+.gallery-item {
+  position: relative;
+  overflow: hidden;
+  background: var(--panel);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: border-color 0.2s;
+}
+
+.gallery-item:hover {
+  border-color: var(--green);
+  z-index: 2;
+}
+
+.gallery-item img {
+  width: 100%;
+  display: block;
+  image-rendering: pixelated;
+  filter: brightness(0.8) saturate(0.9);
+  transition: filter 0.3s, transform 0.3s;
+}
+
+.gallery-item:hover img {
+  filter: brightness(1) saturate(1.2);
+  transform: scale(1.03);
+}
+
+.gallery-item-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.4rem 0.6rem;
+  background: rgba(0,8,0,0.9);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--green-dim);
+  font-family: 'Silkscreen', monospace;
+  transform: translateY(100%);
+  transition: transform 0.2s;
+}
+
+.gallery-item:hover .gallery-item-label {
+  transform: translateY(0);
+}
+
+/* ─── SPRITE BROWSER ─── */
+.sprite-section {
+  padding: 0 2rem 4rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.browser-chrome {
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.browser-titlebar {
+  background: var(--border);
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--green);
+  font-family: 'Silkscreen', monospace;
+}
+
+.browser-titlebar span { color: var(--green-dim); }
+
+.browser-controls {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.search-box {
+  background: transparent;
+  border: 1px solid var(--green-dim);
+  color: var(--green);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  padding: 0.4rem 0.8rem;
+  outline: none;
+  width: 240px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-box:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 10px var(--green-glow);
+}
+
+.search-box::placeholder { color: var(--green-dim); }
+
+.cat-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.cat-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--green-dim);
+  font-family: 'Silkscreen', monospace;
+  font-size: 9px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.15s;
+}
+
+.cat-btn:hover {
+  border-color: var(--green-dim);
+  color: var(--green);
+}
+
+.cat-btn.active {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--black);
+}
+
+.browser-stats {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--green-dim);
+  letter-spacing: 0.1em;
+}
+
+.browser-stats strong { color: var(--amber); }
+
+.sprite-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 1px;
+}
+
+.sprite-grid::-webkit-scrollbar { width: 8px; }
+.sprite-grid::-webkit-scrollbar-track { background: var(--dark); }
+.sprite-grid::-webkit-scrollbar-thumb { background: var(--border); }
+.sprite-grid::-webkit-scrollbar-thumb:hover { background: var(--green-dim); }
+
+.sprite-cell {
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  min-height: 80px;
+  transition: background 0.15s;
+  overflow: hidden;
+}
+
+.sprite-cell:hover {
+  background: rgba(57,255,20,0.08);
+  z-index: 2;
+}
+
+.sprite-cell img {
+  max-width: 72px;
+  max-height: 72px;
+  image-rendering: pixelated;
+  transition: transform 0.2s;
+}
+
+.sprite-cell:hover img {
+  transform: scale(1.3);
+}
+
+.sprite-cell .tooltip {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0,8,0,0.95);
+  padding: 2px 4px;
+  font-size: 8px;
+  color: var(--green-dim);
+  font-family: 'Silkscreen', monospace;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.sprite-cell:hover .tooltip { opacity: 1; }
+
+.load-more-btn {
+  width: 100%;
+  padding: 1rem;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--green-dim);
+  font-family: 'Silkscreen', monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.load-more-btn:hover {
+  background: var(--green-glow);
+  color: var(--green);
+}
+
+/* ─── LIGHTBOX ─── */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,8,0,0.97);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.lightbox.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.lightbox-inner {
+  background: var(--panel);
+  border: 1px solid var(--green-dim);
+  padding: 2rem;
+  max-width: 90vw;
+  max-height: 90vh;
+  position: relative;
+  text-align: center;
+  box-shadow: 0 0 60px var(--green-glow), 0 0 120px rgba(57,255,20,0.05);
+}
+
+.lightbox-img {
+  max-width: 80vw;
+  max-height: 70vh;
+  image-rendering: pixelated;
+  display: block;
+  margin: 0 auto;
+}
+
+.lightbox-info {
+  margin-top: 1rem;
+  font-size: 11px;
+  color: var(--green-dim);
+  letter-spacing: 0.15em;
+}
+
+.lightbox-info strong { color: var(--amber); }
+
+.lightbox-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.7rem;
+  background: none;
+  border: none;
+  color: var(--green-dim);
+  font-family: 'VT323', monospace;
+  font-size: 32px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.lightbox-close:hover { color: var(--red); }
+
+/* ─── FOOTER ─── */
+footer {
+  padding: 2rem;
+  text-align: center;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--green-dim);
+  font-family: 'Silkscreen', monospace;
+}
+
+footer a { color: var(--green-dim); }
+
+/* ─── DIVIDER ─── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+/* ─── SCANLINE FLICKER ─── */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.95; }
+  94% { opacity: 1; }
+  97% { opacity: 0.98; }
+}
+
+.hero { animation: flicker 8s infinite; }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<!-- ─── HERO ─── -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid-overlay"></div>
+
+  <div class="status-bar">
+    <div><span class="status-dot"></span>KEMO CITY CONTAINMENT SYSTEM — SECTOR 7 ACTIVE</div>
+    <div>CLASSIFIED // LEVEL-5 ACCESS REQUIRED</div>
+    <div>SYS: ONLINE &nbsp;|&nbsp; CAM: ACTIVE &nbsp;|&nbsp; THREAT: CRITICAL</div>
+  </div>
+
+  <div class="hero-content">
+    <div class="pre-title">⬛ GAMETEK / IMAGEXCEL PRESENTS ⬛</div>
+    <div class="main-title">QUARANTINE</div>
+    <div class="subtitle">KEMO CITY IS SEALED // NO EXIT</div>
+    <div class="year-tag">MS-DOS &nbsp;·&nbsp; 1994 &nbsp;·&nbsp; INTERACTIVE TRIBUTE</div>
+  </div>
+
+  <div class="lore-strip">
+    <span class="lore-text">
+      DRAKE EDGEWATER — TAXI DRIVER — KEMO CITY, 2022 &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+      THE CITY HAS BEEN SEALED. NO ONE GETS IN. NO ONE GETS OUT. &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+      EARN CREDITS. UPGRADE YOUR CAB. FIND THE EXIT. &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+      WATCH OUT FOR ROAD WARRIORS, MUTANTS, AND GOVERNMENT DRONES. &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+      YOUR CAB IS YOUR WEAPON. YOUR WEAPON IS YOUR CAB. &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+      QUARANTINE © 1994 GAMETEK INC / IMAGEXCEL LTD &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;
+    </span>
+  </div>
+</section>
+
+<!-- ─── LORE ─── -->
+<div class="lore-section">
+  <div class="lore-inner">
+    <div class="lore-portrait">
+      <img src="extracted/img/REPAIRMA.png" alt="Portrait" onerror="this.src='extracted/img/GAMETEK.png'">
+      <div class="lore-portrait-label">EDGEWATER, D.<br>CAB #4412</div>
+    </div>
+    <div class="lore-text-block">
+      <h2>THE CITY IS YOUR PRISON</h2>
+      <p>
+        The year is <span>2022</span>. The city of <span>Kemo</span> has been placed under total quarantine by the government.
+        The streets are ruled by road gangs, mutants, and automated kill-drones.
+        The walls are electrified. The exits are sealed.
+      </p>
+      <p>
+        You are <span>Drake Edgewater</span> — cab driver, survivor, the last sane man in a city gone mad.
+        Your taxi is your only weapon, your only armor, your only hope.
+        Pick up fares. Earn credits. Upgrade your cab with machine guns, plasma cannons, and spike launchers.
+      </p>
+      <p>
+        Somewhere in Kemo City, there is an exit.
+        The government doesn't want you to find it.
+        <span>Find it anyway.</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ─── GALLERY ─── -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">01</div>
+    <div>
+      <div class="section-title">// SURVEILLANCE ARCHIVE</div>
+      <div class="section-desc">FULL-RESOLUTION GAME ASSETS — EXTRACTED FROM ORIGINAL MEDIA</div>
+    </div>
+  </div>
+  <div class="gallery-grid" id="galleryGrid"></div>
+</div>
+
+<hr class="divider">
+
+<!-- ─── SPRITE BROWSER ─── -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">02</div>
+    <div>
+      <div class="section-title">// ASSET TERMINAL</div>
+      <div class="section-desc">4,168 SPRITES EXTRACTED FROM QUARANTINE.SPR — CLASSIFIED MATERIAL</div>
+    </div>
+  </div>
+</div>
+
+<div class="sprite-section">
+  <div class="browser-chrome">
+    <div class="browser-titlebar">
+      <span>▶</span> KEMO CITY ASSET DATABASE v2.4 &nbsp;&nbsp;<span>[ SPRITES ]</span>
+    </div>
+
+    <div class="browser-controls">
+      <input class="search-box" type="text" id="searchBox" placeholder="> SEARCH ASSETS..." autocomplete="off" spellcheck="false">
+      <div class="cat-filters" id="catFilters"></div>
+    </div>
+
+    <div class="browser-stats" id="browserStats">
+      LOADING ASSETS...
+    </div>
+
+    <div class="sprite-grid" id="spriteGrid"></div>
+    <button class="load-more-btn" id="loadMoreBtn">[ LOAD MORE ASSETS ]</button>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ─── FOOTER ─── -->
+<footer>
+  QUARANTINE © 1994 GAMETEK INC / IMAGEXCEL LTD &nbsp;·&nbsp;
+  INTERACTIVE TRIBUTE — NOT FOR COMMERCIAL USE &nbsp;·&nbsp;
+  ASSETS EXTRACTED FOR PRESERVATION PURPOSES &nbsp;·&nbsp;
+  <a href="#">KEMO CITY CONTAINMENT PROTOCOL ACTIVE</a>
+</footer>
+
+<!-- ─── LIGHTBOX ─── -->
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-inner">
+    <button class="lightbox-close" id="lightboxClose">✕</button>
+    <img class="lightbox-img" id="lightboxImg" src="" alt="">
+    <div class="lightbox-info" id="lightboxInfo"></div>
+  </div>
+</div>
+
+<script src="manifest.js"></script>
+<script>
+// ─── GALLERY ───
+const galleryGrid = document.getElementById('galleryGrid');
+IMGS.forEach(img => {
+  const item = document.createElement('div');
+  item.className = 'gallery-item';
+  item.innerHTML = `
+    <img src="extracted/img/${img.file}" alt="${img.file}" loading="lazy">
+    <div class="gallery-item-label">${img.file.replace('.png','')} &nbsp; ${img.w}×${img.h}</div>
+  `;
+  item.addEventListener('click', () => openLightbox(`extracted/img/${img.file}`, img.file.replace('.png',''), `${img.w}×${img.h}`));
+  galleryGrid.appendChild(item);
+});
+
+// ─── SPRITE BROWSER ───
+let activeCategory = 'All';
+let searchQuery = '';
+let visibleCount = 200;
+
+const spriteGrid = document.getElementById('spriteGrid');
+const browserStats = document.getElementById('browserStats');
+const loadMoreBtn = document.getElementById('loadMoreBtn');
+const searchBox = document.getElementById('searchBox');
+const catFilters = document.getElementById('catFilters');
+
+// Build category buttons
+CATEGORIES.forEach(cat => {
+  const btn = document.createElement('button');
+  btn.className = 'cat-btn' + (cat === 'All' ? ' active' : '');
+  btn.textContent = cat.toUpperCase();
+  btn.dataset.cat = cat;
+  btn.addEventListener('click', () => {
+    activeCategory = cat;
+    visibleCount = 200;
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+    renderSprites();
+  });
+  catFilters.appendChild(btn);
+});
+
+function getFiltered() {
+  return SPRITES.filter(s => {
+    const matchCat = activeCategory === 'All' || s.cat === activeCategory;
+    const matchSearch = !searchQuery || s.name.toLowerCase().includes(searchQuery) || s.cat.toLowerCase().includes(searchQuery);
+    return matchCat && matchSearch;
+  });
+}
+
+function renderSprites() {
+  const filtered = getFiltered();
+  const slice = filtered.slice(0, visibleCount);
+
+  spriteGrid.innerHTML = '';
+  slice.forEach(s => {
+    const cell = document.createElement('div');
+    cell.className = 'sprite-cell';
+    cell.innerHTML = `
+      <img src="extracted/spr/${s.file}" alt="${s.name}" loading="lazy">
+      <div class="tooltip">${s.name} ${s.w}×${s.h}</div>
+    `;
+    cell.addEventListener('click', () => openLightbox(
+      `extracted/spr/${s.file}`,
+      s.name,
+      `${s.w}×${s.h} &nbsp;·&nbsp; <strong>${s.cat.toUpperCase()}</strong>`
+    ));
+    spriteGrid.appendChild(cell);
+  });
+
+  browserStats.innerHTML = `DISPLAYING <strong>${slice.length}</strong> OF <strong>${filtered.length}</strong> ASSETS &nbsp;·&nbsp; CATEGORY: <strong>${activeCategory.toUpperCase()}</strong>`;
+  loadMoreBtn.style.display = filtered.length > visibleCount ? 'block' : 'none';
+}
+
+loadMoreBtn.addEventListener('click', () => {
+  visibleCount += 200;
+  renderSprites();
+});
+
+searchBox.addEventListener('input', e => {
+  searchQuery = e.target.value.toLowerCase().trim();
+  visibleCount = 200;
+  renderSprites();
+});
+
+// ─── LIGHTBOX ───
+const lightbox = document.getElementById('lightbox');
+const lightboxImg = document.getElementById('lightboxImg');
+const lightboxInfo = document.getElementById('lightboxInfo');
+
+function openLightbox(src, name, info) {
+  lightboxImg.src = src;
+  lightboxInfo.innerHTML = `<strong>${name}</strong> &nbsp;·&nbsp; ${info}`;
+  lightbox.classList.add('open');
+}
+
+document.getElementById('lightboxClose').addEventListener('click', () => lightbox.classList.remove('open'));
+lightbox.addEventListener('click', e => { if (e.target === lightbox) lightbox.classList.remove('open'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') lightbox.classList.remove('open'); });
+
+// ─── INIT ───
+renderSprites();
+</script>
+</body>
+</html>
