@@ -146,26 +146,31 @@ def parse_blk(game_dir, city):
             walls.append(parse_wall(dec[pos:pos+18]))
             pos += 18
 
-        # Texture data: 4 loops of (fc floor refs + variable wall refs)
-        tex_start = pos
-        for loop in range(4):
-            # Floor textures (1 ref each)
-            for fi in range(fc):
-                lo, hi = dec[pos], dec[pos+1]
-                floors[fi]['textures'].append(
-                    f'{cfg["floors"]}_{number_to_letter(hi)}.gif'
-                )
-                pos += 2
+        # Texture data: tc u16le values total (16 variation slots, only first populated)
+        # Read first texture set, skip the rest using tc as the total byte count
+        tex_block_start = pos
 
-            # Wall textures (tile_count refs, or 1 if texture_repeat)
-            for wi in range(wc):
-                n = 1 if walls[wi]['texture_repeat'] else walls[wi]['tile_count']
-                wall_tex = []
-                for _ in range(n):
-                    lo, hi = dec[pos], dec[pos+1]
-                    wall_tex.append(f'{cfg["walls"]}{lo + 1}_{hi}.png')
-                    pos += 2
-                walls[wi]['textures'].append(wall_tex)
+        # Floor textures (first set only)
+        for fi in range(fc):
+            lo, hi = dec[pos], dec[pos+1]
+            floors[fi]['textures'] = [f'{cfg["floors"].upper()}_{number_to_letter(hi)}.png']
+            pos += 2
+
+        # Wall textures (first set only)
+        for wi in range(wc):
+            n = 1 if walls[wi]['texture_repeat'] else walls[wi]['tile_count']
+            wall_tex = []
+            for _ in range(n):
+                lo, hi = dec[pos], dec[pos+1]
+                frame = hi % 12
+                wall_tex.append(f'{cfg["walls"].upper()}{lo + 1}_{frame:03d}.png')
+                pos += 2
+            walls[wi]['textures'] = wall_tex
+
+        # Skip remaining texture data (other variation sets)
+        tex_bytes_read = pos - tex_block_start
+        tex_bytes_total = tc * 2
+        pos = tex_block_start + tex_bytes_total
 
         # Sprites (12 raw bytes each)
         sprites = []
