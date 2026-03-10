@@ -1,93 +1,118 @@
+# Quarantine Browser Engine
 
-# Modding Quarantine 1994
+A browser-based 3D viewer and engine for **Quarantine (1994)** by GameTek / Imagexcel — built entirely from reverse-engineered game data using the original assets and level geometry.
 
-! In course of updating! this might take me a few days so please be patient, but let me know if you have a particular part you need advice on
+**No Doom. No emulator. No plugins. Pure JavaScript + Three.js.**
 
+> Forked from [diggedypomme/quarantine-modding](https://github.com/diggedypomme/quarantine-modding) which did the foundational reverse engineering of the BLK/MAP/SPR formats. This project takes that work and builds a browser-native engine from it.
 
-Documenting my findings on modding the 1994 game Quarantine
+---
 
-This is the github repo to go with my subreddit : https://www.reddit.com/r/QuarantineModding/  
-And youtube video: https://www.youtube.com/watch?v=nTVZKp6tR-Y
+## Live Demo
 
-[![Watch the video](https://img.youtube.com/vi/nTVZKp6tR-Y/0.jpg)](https://www.youtube.com/watch?v=nTVZKp6tR-Y)
+Serve the `browser/` directory with any HTTP server:
 
+```bash
+cd browser
+python3 -m http.server 8765
+# open http://localhost:8765/engine.html
+```
 
-Note that this is a work in progress and I will keep updating it as I fix up and get my code and explanations uploaded. This may take some time.
+## What's Working
 
-## Quarantine:
-I have been playing around with a game that made a big impact on me as a kid, the 1994 game Quarantine. Think Doom in a Taxi, with huge maps and sandbox gameplay. This github is a work in process to document my findings, and share the scripts that I used to do so. I am currently in the process of documenting all of this, which will take some time, so this will be filled out as I go.
+| Feature | Status |
+|---------|--------|
+| 5 full levels (KCITY, JCITY, PCITY, SCITY, WCITY) | ✅ |
+| Real wall geometry from BLK tile definitions | ✅ |
+| Original 64×64 wall textures (SPR files) | ✅ |
+| Per-tile floor quads with 64×64 floor textures | ✅ |
+| Actual MAP grid placement | ✅ |
+| Smart camera spawn (finds street between buildings) | ✅ |
+| WASD + mouse look navigation | ✅ |
+| Minimap | ✅ |
+| Wireframe mode | ✅ |
+| Sprite browser (4,168 sprites, 15 categories) | ✅ |
+| Interactive fan tribute page | ✅ |
+| Sprite billboards (enemies, objects) | 🔜 |
+| Collision detection | 🔜 |
+| Audio (VOC sound effects) | 🔜 |
 
-> **Note** that this is the first time that I have worked on any of this, so my methods might not be correct, but I got there in the end. I am open to any suggestions for improvements, or for new findings.
+## Browser Files
 
-## Main summary:
-- .MAP - The game has 5 maps, each of which have the name "*CITY.MAP". Please see the mapping section for more info.  
-- .BLK - The map file refers to tile references. These are configured within similarly named .BLK files. Please see the BLK section for more into  
-- .SPR - The "sprite" files contain the image data for walls and the in game objects/enemies  
-- .IMG - The IMG files contain the texture data for hud images and floors  
-- .GAM - The .GAM files contain the file saves.  
+```
+browser/
+├── engine.html          # Main 3D level viewer (Three.js)
+├── tribute.html         # Fan tribute page + sprite browser
+├── raycaster.html       # Grid raycaster prototype
+├── extract.py           # Asset extraction pipeline
+├── parse_blk.py         # BLK tile geometry parser
+├── assets/
+│   ├── img/             # Full-screen images + floor tiles (320×200 → 64×64 splits)
+│   ├── spr/             # 4,207 sprites (palette-matched per area)
+│   └── tiles/           # Parsed tile geometry JSON + MAP grids
+```
 
-### Maps
-- **The game maps are large 2d arrays. Each number in the array corresponds to one "tile", with 0 being a blank tile. The numbers go up to 65,535 (the largest value for an unsigned 16 bit int).**  
-For each map there are actually 128 different model setups (this could just be a section of road, or maybe a couple of buildings etc). Each of these have 4 different texture sets.  
-The first 128 (0-127) are the first texture set. The next 128 follow the same texture set. I'm not sure what the difference is between 10 and 138 for example, but I assume this is something to do with floors changing.  
-For my map previewer, as I had the screenshots generated, I simplified this by condensing down the 0-127 range.
+## File Format Reference
 
-The first two bytes (UINT16LE, little-endian) in the file are the width. The next two are the height, then the following data contains all of the map data itself. 
+### MAP (`*CITY.MAP`)
+```
+[width: u16le][height: u16le][tiles: u16le × w × h]
+```
+- `0` = empty road cell
+- `1–127` = tile model index (first texture set)
+- `128+` = same models, additional texture sets
+- Tile model: `(value - 1) % 128` → index into BLK tile array
 
-### Sprites
-The sprite files cover the in game objects and walls. They are stored in `.SPR` files, each of which contain multiple images. The sprite data is in hex files, which first list the number of images within the file, then the x,y sizes for each, then the raw data for the files themselves.
+### BLK (`*CITY.BLK`)
+```
+[unknown: u16le][num_tiles: u16le]
+[num_tiles × tile_header: 8 bytes each]
+  → floor_count, wall_count, texture_count, sprite_count (all u16le)
+[tile data blocks, variable length, back-to-back]
+  → floor_count × 18 raw bytes per floor
+  → wall_count  × 18 raw bytes per wall
+  → texture_count × 2 bytes (16 variation slots, only first populated)
+  → sprite_count × 12 raw bytes per sprite
+```
 
-For example:
-03 50 50 60 60 70 70 60 60 60 ....
+**Wall (18 bytes):**
+- `b[0]` = tile_count (number of wall segments)
+- `b[2,3]` = east_per_tile (signed: `b[3]==255` → negative)
+- `b[4,5]` = south_per_tile (signed)
+- `b[6,7]` = height (game units)
+- `b[8]+b[9]×256` = start_east, `b[10]+b[11]×256` = start_south
+- `b[12,13]` = vertical offset (signed; `offset=20` = floor level)
+- `b[15]` = texture_repeat (`255` = one-per-segment, else = single texture)
 
-- `03` converted to hex would be `3`. `0c` would be `12`. That's the number of images within this sprite.  
-- `50` in hex is `80` in decimal, so the first image is **80x80 pixels**.  
-- `60` in hex is `96` in decimal, so the second image is **96x96 pixels**.  
-- `70` in hex is `112` in decimal, so the third image is **112x112 pixels**.
+**Floor (18 bytes):** scale, rotation, height, 4 vertices (scaled ×32 for game units)
 
-The data after this is the raw image data. So for the above example:  
-- If it's **80x80**, the next **6400 decimal numbers** are the first image.  
-- The next **9216** are the second image.  
-- The next **12544** are the third image.
+**Sprite (12 bytes):** x, y, z position + texture reference
 
-There are no delimiters within the image data itself; you need to split it based on the lengths defined from the starting sizes.
+### SPR (sprite files)
+```
+[count: u8][width_0: u8][height_0: u8]...[raw pixels: count × w × h]
+```
+Palette comes from companion `*FLOOR.IMG` for that area.
 
-### Palettes
-The `.IMG` files relate to the floor and HUD (see section on `.IMG`), but I noted that when making edits to these files, it ended up affecting the palette for the sprites on that level. With that in mind, I found that you can select the relevant floor `.IMG` for that level, extract the palette from it, and then apply this palette to the sprites in question.
+### IMG (full-screen images)
+Standard GIF87a with magic bytes replaced: `IMAGEX` → `GIF87a`  
+Floor images split into 5×3 grids of 64×64 tiles, lettered `a`–`o`.
 
-### IMG extraction.
-- I got the tip for this by looking at https://moddingwiki.shikadi.net/wiki/Quarantine - "*.IMG GIF with modified signature ("IMAGEX" instead of standard "GIF87a")"
-- This is done by opening the IMG in a hex editor and changing the start block to read GIF87a. This can then be read with paint, or any other image processing tool. Note that the palettes are used for the sprites, so you NEED to retain the palette when you save it. I found Gimp to be the best tool for doing this.
+## Running the Asset Extractor
 
-### Save game hacking
-- These are just long hex files, again 16 bit little endian. I don't know the correct way to know what refers to which variables, however I wrote a script using pyautogui which loads the game, then runs through a bunch of different setups - standing still for x, moving for x, shooting for x) and then compares these to see what changed across them. This can then highlight relevant areas for you to investigate changing. This worked well, so I can now edit the main gun ammo, and the x coord. I need to work out exactly how to map this coord onto the main map, and I also need to work out the y coord, and the rotation.. I'd like to be able to set a spawn point within the map, and then toggle back to the game but have it write the coord to a save so you can just load this to continue from there.  
-This will probably be one of the last things I upload because I feel the other things are higher priority.
+You need the original Quarantine game files (freely available at [archive.org](https://archive.org/details/quarantine_202404)):
 
-### Tile setups
--to be updated, but basically to get some explanation here:
+```bash
+cd browser
+pip install Pillow tqdm
+python3 extract.py --game /path/to/Q/ --out ./assets
+python3 parse_blk.py --game /path/to/Q/ --out ./assets/tiles
+```
 
--the first number is 01. Not sure of the relevance of this.  
--Then after this it is the number of tiles (128).  
--After this it then goes through each of the tiles one by one, giving the values for "Floor Count", "Wall Count","Texture data", "Sprites"
+## Credits
 
-Floor: 18 bytes  
-Wall: 18 bytes  
-Texture data : 2  
-Sprites: 12 bytes  
-
-There is no delimiter, so you need to work out the length of each subsequent tile by calculating the sum of:  
-- number of floors * 18  
-- number of walls * 18  
-- Texture data *2  
-- sprite count * 12
-
-By working out the start stops for each of the tiles, you can then parse the data. I will add more info on this shortly.
-
-Sprites:  
-![Sprites](images/explanation/sprites.png)
-
-Walls:  
-![Walls](images/explanation/walls.png)
-
-### Doom
-to be updated , but see the doom explanation subfolder for queries as to why I did it with all actors, and the pros and cons of doing it differently.
+- **Format reverse engineering:** [diggedypomme](https://github.com/diggedypomme/quarantine-modding) · [r/QuarantineModding](https://reddit.com/r/QuarantineModding)
+- **SPR format:** [colinbourassa/quarantine-decode](https://github.com/colinbourassa/quarantine-decode)
+- **Format docs:** [ModdingWiki](https://moddingwiki.shikadi.net/wiki/Quarantine)
+- **Quarantine** © 1994 GameTek Inc / Imagexcel Ltd — fan project, not for commercial use
+- Game freely available: [archive.org/details/quarantine_202404](https://archive.org/details/quarantine_202404)

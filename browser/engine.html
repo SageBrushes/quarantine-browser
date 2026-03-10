@@ -244,20 +244,15 @@ async function switchCity(city) {
 
   // Floor plane
   if (document.getElementById('chkFloor').checked) {
-    const floorTex = await loadTex(`assets/img/${cfg.floor}`);
-    const tileWorld = TILE_SIZE * WALL_SCALE; // one tile in world units
-    if (floorTex) floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
-    if (floorTex) floorTex.repeat.set(200, 200);
-    const floor = new THREE.Mesh(
+    // Base dark road plane (fallback under everything)
+    const basePlane = new THREE.Mesh(
       new THREE.PlaneGeometry(80000, 80000),
-      new THREE.MeshLambertMaterial({
-        map: floorTex || null,
-        color: floorTex ? 0xffffff : 0x1a1a14,
-      })
+      new THREE.MeshLambertMaterial({ color: 0x1a1a14 })
     );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -0.01;
-    scene.add(floor);
+    basePlane.rotation.x = -Math.PI / 2;
+    basePlane.position.y = -0.02;
+    scene.add(basePlane);
+
 
     // Simple sky color — match the game's dark purple/night sky
     scene.background = new THREE.Color(0x0a0610);
@@ -269,11 +264,51 @@ async function switchCity(city) {
 
   let wallCount = 0, tileCount = 0;
 
-  const MAX_WALL = TILE_SIZE * WALL_SCALE * 1.5; // max reasonable wall length
+  const MAX_WALL = TILE_SIZE * WALL_SCALE * 1.5;
+
+  // Floor tile material cache (shared across all buildTileAt calls)
+  const floorMatCache = {};
+  const getFloorMat = async (texName) => {
+    if (floorMatCache[texName]) return floorMatCache[texName];
+    const tex = await loadTex(`assets/img/${texName}`);
+    const mat = new THREE.MeshLambertMaterial({ map: tex || null, color: 0xffffff });
+    floorMatCache[texName] = mat;
+    return mat;
+  };
 
   const buildTileAt = async (tileModel, ox, oz) => {
     const tile = tiles[tileModel];
     if (!tile) return;
+
+    // Floor quads — vertices scaled by 32 to get game units, then * WALL_SCALE
+    const VSCALE = 32 * WALL_SCALE;
+    for (const fl of tile.floors) {
+      const texName = fl.textures?.[0];
+      if (!texName) continue;
+      const v = fl.vertices;
+      // Quad: 4 vertices in game tile space (x=east, y=south)
+      const x0 = v[0].x * VSCALE + ox, z0 = v[0].y * VSCALE + oz;
+      const x1 = v[1].x * VSCALE + ox, z1 = v[1].y * VSCALE + oz;
+      const x2 = v[2].x * VSCALE + ox, z2 = v[2].y * VSCALE + oz;
+      const x3 = v[3].x * VSCALE + ox, z3 = v[3].y * VSCALE + oz;
+
+      const geo = new THREE.BufferGeometry();
+      const pos = new Float32Array([
+        x0,0,z0,  x1,0,z1,  x2,0,z2,
+        x0,0,z0,  x2,0,z2,  x3,0,z3,
+      ]);
+      const uvs = new Float32Array([
+        0,1, 1,1, 1,0,
+        0,1, 1,0, 0,0,
+      ]);
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      geo.computeVertexNormals();
+      const mat = await getFloorMat(texName);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.y = fl.height * WALL_SCALE * 0.1 || 0;
+      scene.add(mesh);
+    }
     for (const wall of tile.walls) {
       // Validate: coordinates should be within 0–TILE_SIZE range
       const coords = [wall.start_east, wall.start_south, wall.end_east, wall.end_south];
